@@ -1,65 +1,40 @@
 #include <Fuzzy.h>
 
-int luminosidade = 0;
+int luminosidade_leitura = 0;
+int saida_led = 3;
+float temperatura_lida = 0;
 int sensor_lm35 = 0;
-int led = 3;
-float temperatura, tensao = 0;
-
-void Read_Temperatura() {
-    
-    sensor_lm35 = analogRead(A0);
-
-    temperatura = (sensor_lm35/1024.0)*5.0*100; 
-
-    Serial.print("Temperatura: ");
-    Serial.println(temperatura);
-
-    delay(1000);
-
-    return(temperatura);
-}
-
-void Read_luminosidade() {
-    luminosidade = analogRead(A1);
-    
-    Serial.print("Valor lido pelo LDR = ");
-    Serial.println(luminosidade);
-    
-    delay(1000);
-
-    return(luminosidade);
-}
+int gnd = 7;
 
 // Fuzzy
 Fuzzy *fuzzy = new Fuzzy();
 
 // FuzzyInput temperatura
-FuzzySet *frio = new FuzzySet(0, 0, 10, 10);
-FuzzySet *meio_frio = new FuzzySet(10, 10, 20, 20);
-FuzzySet *agradavel = new FuzzySet(18, 18, 23, 28);
-FuzzySet *quente = new FuzzySet(20, 20, 30, 40);
-FuzzySet *muito_quente = new FuzzySet(30, 30, 40, 50);
+FuzzySet *frio = new FuzzySet(0, 5, 5, 10);
+FuzzySet *meio_frio = new FuzzySet(10, 15, 25, 20);
+FuzzySet *agradavel = new FuzzySet(18, 23, 23, 28);
+FuzzySet *quente = new FuzzySet(20, 30, 30, 40);
+FuzzySet *muito_quente = new FuzzySet(30, 40, 40, 50);
 
 // FuzzyInput luminosidade
-FuzzySet *escuro = new FuzzySet(0, 0, 50, 100);
-FuzzySet *meio_escuro = new FuzzySet(50, 50, 150, 250);
-FuzzySet *normal = new FuzzySet(200, 200, 500, 800);
-FuzzySet *claro = new FuzzySet(500, 500, 800, 1000);
-FuzzySet *muito_claro = new FuzzySet(800, 800, 1000, 1024);
+FuzzySet *muito_claro = new FuzzySet(0, 50, 50, 100);
+FuzzySet *claro = new FuzzySet(50, 150, 150, 250);
+FuzzySet *normal = new FuzzySet(200, 500, 500, 800);
+FuzzySet *meio_escuro = new FuzzySet(500, 800, 800, 1000);
+FuzzySet *escuro = new FuzzySet(800, 1000, 1000, 1024);
 
 // FuzzyOutput LED
-FuzzySet *muito_baixo = new FuzzySet(0, 0, 64, 64);
-FuzzySet *baixo = new FuzzySet(64, 64, 128, 128);
-FuzzySet *medio = new FuzzySet(128, 128, 192, 192);
-FuzzySet *alto = new FuzzySet(192, 192, 255, 255);
-FuzzySet *muito_alto = new FuzzySet(255, 255, 255, 255);
+FuzzySet *muito_baixo = new FuzzySet(0, 32, 32, 50);
+FuzzySet *baixo = new FuzzySet(32, 64, 64, 94);
+FuzzySet *medio = new FuzzySet(64, 110, 110, 128);
+FuzzySet *alto = new FuzzySet(110, 150, 150, 180);
+FuzzySet *muito_alto = new FuzzySet(150, 210, 210, 255);
 
 
 void setup()
 {
     Serial.begin(9600);
-
-    pinMode(A1, INPUT);
+    pinMode(gnd, OUTPUT);
 
     // FuzzyInput
     FuzzyInput *temperatura = new FuzzyInput(1);
@@ -92,74 +67,96 @@ void setup()
     fuzzy->addFuzzyOutput(led);
     
     // Regras Fuzzy
-    // Regra 1: Se temperatura é muito_frio OU luminosidade é escuro, então LED é muito_alto
-    FuzzyRuleAntecedent *temp_muito_frio_e_luminosidade_escuro = new FuzzyRuleAntecedent();
-    temp_muito_frio_e_luminosidade_escuro->joinWithOR(frio, escuro);
-
-    FuzzyRuleConsequent *led_muito_alto = new FuzzyRuleConsequent();
-    led_muito_alto->addOutput(muito_alto);
-
-    FuzzyRule *fuzzyRule1 = new FuzzyRule(1, temp_muito_frio_e_luminosidade_escuro, led_muito_alto);
-    fuzzy->addFuzzyRule(fuzzyRule1);
-
-    // Regra 2: Se temperatura é agradavel OU luminosidade é normal, então LED é medio
-    FuzzyRuleAntecedent *temp_agradavel_ou_luminosidade_normal = new FuzzyRuleAntecedent();
-    temp_agradavel_ou_luminosidade_normal->joinWithOR(agradavel, normal);
-
-    FuzzyRuleConsequent *led_medio = new FuzzyRuleConsequent();
-    led_medio->addOutput(medio);
-
-    FuzzyRule *fuzzyRule2 = new FuzzyRule(2, temp_agradavel_ou_luminosidade_normal, led_medio);
-    fuzzy->addFuzzyRule(fuzzyRule2);
-
-    // Regra 3: Se temperatura é quente OU luminosidade é claro, então LED é baixo
-    FuzzyRuleAntecedent *temp_quente_e_luminosidade_claro = new FuzzyRuleAntecedent();
-    temp_quente_e_luminosidade_claro->joinWithOR(quente, claro);
-
-    FuzzyRuleConsequent *led_baixo = new FuzzyRuleConsequent();
-    led_baixo->addOutput(baixo);
-
-    FuzzyRule *fuzzyRule3 = new FuzzyRule(3, temp_quente_e_luminosidade_claro, led_baixo);
-    fuzzy->addFuzzyRule(fuzzyRule3);
-
-    // Regra 4: Se temperatura é muito_quente OU luminosidade é muito_claro, então LED é muito_baixo
-    FuzzyRuleAntecedent *temp_muito_quente_ou_luminosidade_muito_claro = new FuzzyRuleAntecedent();
-    temp_muito_quente_ou_luminosidade_muito_claro->joinWithOR(muito_quente, muito_claro);
+    // Regra 1: SE luminosidade é muito_claro OU temperatura é muito_quente, então LED é muito_baixo
+    FuzzyRuleAntecedent *muito_claro_muito_quente = new FuzzyRuleAntecedent();
+    muito_claro_muito_quente->joinWithOR(muito_claro, muito_quente);
 
     FuzzyRuleConsequent *led_muito_baixo = new FuzzyRuleConsequent();
     led_muito_baixo->addOutput(muito_baixo);
 
-    FuzzyRule *fuzzyRule4 = new FuzzyRule(4, temp_muito_quente_ou_luminosidade_muito_claro, led_muito_baixo);
-    fuzzy->addFuzzyRule(fuzzyRule4);
+    FuzzyRule *fuzzyRule1 = new FuzzyRule(1, muito_claro_muito_quente, led_muito_baixo);
+    fuzzy->addFuzzyRule(fuzzyRule1);
+    
+    
 
-    // Regra 5: Se temperatura é frio OU luminosidade é meio_escuro, então LED é alto
-    FuzzyRuleAntecedent *temp_frio_e_luminosidade_meio_escuro = new FuzzyRuleAntecedent();
-    temp_frio_e_luminosidade_meio_escuro->joinWithOR(frio, meio_escuro);
+    // Regra 2: SE luminosidade é claro OU temperatura é quente, então LED é baixo
+    FuzzyRuleAntecedent *claro_quente = new FuzzyRuleAntecedent();
+    claro_quente->joinWithOR(claro, quente);
+
+    FuzzyRuleConsequent *led_baixo = new FuzzyRuleConsequent();
+    led_baixo->addOutput(baixo);
+
+    FuzzyRule *fuzzyRule2 = new FuzzyRule(2, claro_quente, led_baixo);
+    fuzzy->addFuzzyRule(fuzzyRule2);
+
+    
+
+    // Regra 3: SE luminosidade é agradavel OU temperatura é normal, então LED é medio
+    FuzzyRuleAntecedent *agradavel_normal = new FuzzyRuleAntecedent();
+    agradavel_normal->joinWithOR(agradavel, normal);
+
+    FuzzyRuleConsequent *led_medio = new FuzzyRuleConsequent();
+    led_medio->addOutput(medio);
+
+    FuzzyRule *fuzzyRule3 = new FuzzyRule(3, agradavel_normal, led_medio);
+    fuzzy->addFuzzyRule(fuzzyRule3);
+
+    
+
+    // Regra 4: SE luminosidade é meio_escuro OU temperatura é meio_frio, então LED é alto
+    FuzzyRuleAntecedent *meio_escuro_meio_frio = new FuzzyRuleAntecedent();
+    meio_escuro_meio_frio->joinWithOR(meio_escuro, meio_frio);
 
     FuzzyRuleConsequent *led_alto = new FuzzyRuleConsequent();
     led_alto->addOutput(alto);
 
-    FuzzyRule *fuzzyRule5 = new FuzzyRule(5, temp_frio_e_luminosidade_meio_escuro, led_alto);
+    FuzzyRule *fuzzyRule4 = new FuzzyRule(4, meio_escuro_meio_frio, led_alto);
+    fuzzy->addFuzzyRule(fuzzyRule4);
+
+    
+
+    // Regra 5: SE luminosidade é escuro OU temperatura é frio, então LED é muito_alto
+    FuzzyRuleAntecedent *escuro_frio = new FuzzyRuleAntecedent();
+    escuro_frio->joinWithOR(escuro, frio);
+
+    FuzzyRuleConsequent *led_muito_alto = new FuzzyRuleConsequent();
+    led_muito_alto->addOutput(muito_alto);
+
+    FuzzyRule *fuzzyRule5 = new FuzzyRule(5, escuro_frio, led_muito_alto);
     fuzzy->addFuzzyRule(fuzzyRule5);
 }
 
 void loop()
-{
-    Read_Temperatura();
-    Read_luminosidade();
+{  
+  digitalWrite(gnd, 0); 
+  sensor_lm35 = analogRead(A0);
 
-    fuzzy->setInput(1, temperatura);
-    fuzzy->setInput(2, luminosidade);
+  temperatura_lida = (sensor_lm35/1024.0)*5.0*100;
+
+  Serial.print("Temperatura: ");
+  Serial.println(temperatura_lida);
+    
+  luminosidade_leitura = analogRead(A1);
+  
+  delay(100);  
+  
+    fuzzy->setInput(1, temperatura_lida);
+    fuzzy->setInput(2, luminosidade_leitura);
 
     fuzzy->fuzzify();
 
-    float saida = fuzzy->defuzzify(1);
+    float saida = fuzzy->defuzzify(1);    
+    
+        
+    Serial.print("Valor lido pelo LDR = ");
+    Serial.println(luminosidade_leitura);
 
     Serial.print("Saída: ");
     Serial.println(saida);
+    
     Serial.println("");
 
-    analogWrite(led, saida);
+    tone(saida_led, saida);
 
-    delay(2000);
+    delay(1000);
 }
