@@ -11,7 +11,7 @@ Fuzzy *fuzzy = new Fuzzy();
 
 // FuzzyInput temperatura
 FuzzySet *frio = new FuzzySet(0, 5, 5, 10);
-FuzzySet *meio_frio = new FuzzySet(10, 15, 25, 20);
+FuzzySet *meio_frio = new FuzzySet(10, 15, 15, 20);
 FuzzySet *agradavel = new FuzzySet(18, 23, 23, 28);
 FuzzySet *quente = new FuzzySet(20, 30, 30, 40);
 FuzzySet *muito_quente = new FuzzySet(30, 40, 40, 50);
